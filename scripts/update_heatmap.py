@@ -2,8 +2,8 @@ import os, json, base64
 import pandas as pd
 
 
-def update_html_with_data(
-    html_template_path, output_html_path, title, data_path, image_dir
+def update_heatmap_html_template(
+    html_template_path, output_html_path, title, data_dir, image_dir
 ):
     """
     Updates the HTML file with data from a dataset and image paths from a directory.
@@ -12,7 +12,7 @@ def update_html_with_data(
         html_template_path (str): Path to the template HTML file.
         output_html_path (str): Path to save the updated HTML file.
         title (str): Title for the HTML page.
-        data_path (str): Path to the data file (pickle containing yields_df and yield_data_df).
+        data_dir (str): Path to the data file (pickle containing yields_df and yield_data_df).
         image_dir (str): Directory containing images, named by compound IDs.
 
     Returns:
@@ -20,9 +20,9 @@ def update_html_with_data(
     """
     # Validate required files
     required_files = [
-        os.path.join(data_path, "Yields.pkl"),
-        os.path.join(data_path, "yield_data_df.pkl"),
-        os.path.join(data_path, "mol_image_paths.json"),
+        os.path.join(data_dir, "yields.pkl"),
+        os.path.join(data_dir, "yield_data_df.pkl"),
+        os.path.join(data_dir, "mol_image_paths_captioned.json"),
     ]
     for file in required_files:
         if not os.path.exists(file):
@@ -33,11 +33,11 @@ def update_html_with_data(
     yield_data_df = pd.read_pickle(required_files[1])
     # Load the image JSON file
     with open(required_files[2], "r") as f:
-        mol_image_paths_captioned = json.load(f)
+        mol_image_paths = json.load(f)
 
     # Convert image paths to base64 encoded strings
     mol_image_base64 = {}
-    for compound_id, img_path in mol_image_paths_captioned.items():
+    for compound_id, img_path in mol_image_paths.items():
         base_filename = os.path.basename(img_path)
         img_full_path = os.path.join(image_dir, base_filename)
         if os.path.exists(img_full_path):
@@ -73,19 +73,12 @@ def update_html_with_data(
 
 
 if __name__ == "__main__":
-    # Example usage
-    html_template_path = os.path.join(
-        "template", "heapmap_template.html"
-    )  # Path to the template HTML file
-    "template.html"  # Path to the template HTML file
-    output_html_path = os.path.join(
-        "docs", "Yield Heatmap.html"
-    )  # Path for the generated HTML file
-    "index.html"  # Path for the generated HTML file
-    title = "Yield Heatmap"  # Title for the HTML page
-    data_path = "data"  # Path to the folder containing data pickle files
+    html_template_path = os.path.join("templates", "heapmap_template.html")
+    output_html_path = os.path.join("docs", "Yield Heatmap.html")
+    title = "Yield interactive heatmap"  # Title for the HTML page
+    data_dir = "data"  # Path to the folder containing data pickle files
     image_dir = "images"  # Path to the folder containing images
 
-    update_html_with_data(
-        html_template_path, output_html_path, title, data_path, image_dir
+    update_heatmap_html_template(
+        html_template_path, output_html_path, title, data_dir, image_dir
     )
