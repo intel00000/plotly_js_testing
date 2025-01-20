@@ -79,7 +79,7 @@ if __name__ == "__main__":
     )  # Path to the template HTML file
     "template.html"  # Path to the template HTML file
     output_html_path = os.path.join(
-        "pages", "Yield Heatmap.html"
+        "docs", "Yield Heatmap.html"
     )  # Path for the generated HTML file
     "index.html"  # Path for the generated HTML file
     title = "Yield Heatmap"  # Title for the HTML page

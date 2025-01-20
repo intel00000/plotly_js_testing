@@ -1,7 +1,7 @@
 import os, glob
 import time
 
-folder = "pages"
+folder = "docs"
 
 # List all HTML files in the current directory excluding index.html
 html_files = [f for f in glob.glob(f"*.html", root_dir=folder) if f != "index.html"]
