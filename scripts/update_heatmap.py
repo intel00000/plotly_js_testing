@@ -22,7 +22,7 @@ def update_html_with_data(
     required_files = [
         os.path.join(data_path, "Yields.pkl"),
         os.path.join(data_path, "yield_data_df.pkl"),
-        os.path.join(data_path, "mol_image_paths_captioned.json"),
+        os.path.join(data_path, "mol_image_paths.json"),
     ]
     for file in required_files:
         if not os.path.exists(file):

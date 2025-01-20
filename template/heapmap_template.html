@@ -32,6 +32,7 @@
             font-family: Arial, sans-serif;
             font-size: 16px;
             color: black;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -48,7 +49,7 @@
         const imageData = __IMAGE_DATA__;
 
         // Create the heatmap
-        var trace1 = {
+        const trace1 = {
             type: 'heatmap',
             z: z,
             x: x,
@@ -67,24 +68,24 @@
                 thickness: 20,
             },
         };
-        var data = [trace1];
+        const data = [trace1];
 
-        var fontDefault = {
+        const fontDefault = {
             color: 'black',
             family: 'Courier New, monospace',
             size: 16
         };
 
-        var layout = {
+        const layout = {
             title: {
-                text: "__TITLE__",
-                font: fontDefault,
+                text: "<b>__TITLE__</b>",
+                font: {...fontDefault, size: 32},
                 xref: 'paper',
                 yref: 'paper',
                 automargin: true,
             },
             xaxis: {
-                title: 'Compounds',
+                title: '<b>Compounds</b>',
                 scaleanchor: 'y', // Ensures 1:1 ratio
                 scaleratio: 1,
                 font: fontDefault,
@@ -92,7 +93,7 @@
 
             },
             yaxis: {
-                title: 'Methods',
+                title: '<b>Methods</b>',
                 autorange: 'reversed', // Reverse the order of the y-axis
                 font: fontDefault
             },
@@ -102,7 +103,7 @@
             autosize: true,
         };
 
-        var config = {responsive: true};
+        const config = {responsive: true};
 
         Plotly.react('heatmap', data, layout, config);
 
@@ -117,18 +118,27 @@
             const yieldValue = point.z;
             console.log(compoundId, method, yieldValue, point);
 
+            var cellSize = point.bbox['x1'] - point.bbox['x0']
+            if (cellSize < 0) {
+                cellSize = -cellSize;
+            }
+
             // Tooltip content
             const imgSrc = imageData[compoundId];
             tooltip.innerHTML = `
                 <img src="data:image/png;base64,${imgSrc}" alt="Image for ${compoundId}"><br>
+                <strong>Compound:</strong> ${compoundId}<br>
                 <strong>Method:</strong> ${method}<br>
-                <strong>Yield:</strong> ${yieldValue}%
+                <strong>Yield:</strong> ${yieldValue.toFixed(2)}%
             `;
 
             // Position and show the tooltip
             const {clientX: mouseX, clientY: mouseY} = event.event;
-            tooltip.style.left = `${mouseX}px`;
-            tooltip.style.top = `${mouseY}px`;
+            var x = point.xaxis.l2p(point.pointNumber[1]) + point.xaxis._offset + cellSize / 2;
+            var y = point.yaxis.l2p(point.pointNumber[0]) + point.yaxis._offset + cellSize / 2;
+            console.log(x, y);
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
             tooltip.style.display = 'block';
         });
 
