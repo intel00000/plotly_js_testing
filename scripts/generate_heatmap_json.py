@@ -5,7 +5,11 @@ import pandas as pd
 
 
 def generate_heatmap_json(
-    output_json_path: str, data_dir: str, image_dir: str, graph_name: str
+    output_json_path: str,
+    data_dir: str,
+    image_dir: str,
+    page_title: str,
+    graph_name: str,
 ):
     """
     Generates a JSON file containing heatmap data for visualization.
@@ -14,6 +18,7 @@ def generate_heatmap_json(
         output_json_path (str): Path to save the generated JSON file.
         data_dir (str): Path to the folder containing data pickle files.
         image_dir (str): Directory containing molecular images, named by compound IDs.
+        page_title (str): Title for the heatmap page.
         graph_name (str): Name of the graph to be included in the JSON data.
 
     Returns:
@@ -51,7 +56,8 @@ def generate_heatmap_json(
 
     # Prepare heatmap data
     heatmap_data = {
-        "name": graph_name,
+        "page_title": page_title,
+        "graph_name": graph_name,
         "z_values": yield_data_df.T.to_numpy().tolist(),
         "x_values": yields_df["id"].tolist(),
         "y_values": yield_data_df.columns.tolist(),
@@ -66,9 +72,10 @@ def generate_heatmap_json(
 
 
 if __name__ == "__main__":
-    name = "35_compounds"
+    title = "Yields Map of 35 compounds"
+    graph_name = "Yields Map"
     output_json_path = "docs/data/heatmap/heatmap_data.json"
     data_dir = "data"  # Path to the folder containing data pickle files
     image_dir = "images"  # Path to the folder containing images
 
-    generate_heatmap_json(output_json_path, data_dir, image_dir, name)
+    generate_heatmap_json(output_json_path, data_dir, image_dir, title, graph_name)

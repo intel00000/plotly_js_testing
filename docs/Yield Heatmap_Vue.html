@@ -40,8 +40,8 @@
 </head>
 
 <body class="bg-gray-100 text-gray-900 font-sans">
-    <div id="app" class="p-4">
-        <h1 class="text-2xl font-bold text-center mb-6">{{ title || "Loading..." }}</h1>
+    <div id="app">
+        <p v-if="!heatmapData" class="text-center text-lg font-semibold">Loading heatmap...</p>
         <div id="heatmap" class="w-full h-[100vh]"></div>
         <div id="tooltip" class="hover-tooltip"></div>
     </div>
@@ -52,7 +52,8 @@
         createApp({
             data() {
                 return {
-                    title: "Loading...",
+                    page_title: "Loading...",
+                    graph_name: "Loading...",
                     heatmapData: null
                 };
             },
@@ -61,11 +62,12 @@
                     .then(response => response.json())
                     .then(data => {
                         this.heatmapData = data;
-                        document.title = data.title; // Update the page title
-                        this.title = data.title;
+                        this.page_title = data.page_title;
+                        this.graph_name = data.graph_name;
+                        document.title = this.page_title;
                         this.renderHeatmap();
                     })
-                    .catch(error => console.error('Error loading heatmap data:', error));
+                    .catch(error => console.error('Error loading heatmap data:', error))
             },
             methods: {
                 renderHeatmap() {
@@ -98,7 +100,7 @@
                     };
                     const layout = {
                         title: {
-                            text: `<b>${this.title}</b>`,
+                            text: "<b>" + this.graph_name + "</b>",
                             font: {...fontDefault, size: 32, family: 'Arial, sans-serif'},
                             xref: 'paper',
                             yref: 'paper',
@@ -151,10 +153,7 @@
                         const method = point.y;
                         const yieldValue = point.z;
                         // determine the cell size
-                        var cellSize = point.bbox['x1'] - point.bbox['x0']
-                        if (cellSize < 0) {
-                            cellSize = -cellSize;
-                        }
+                        var cellSize = Math.abs(point.bbox.width || (point.bbox.x1 - point.bbox.x0));
                         // Tooltip content
                         const imgSrc = this.heatmapData.images[compoundId];
                         tooltip.innerHTML = `
@@ -166,8 +165,8 @@
 
                         // Position and show the tooltip
                         const {clientX: mouseX, clientY: mouseY} = event.event;
-                        var x = point.xaxis.l2p(point.pointNumber[1]) + point.xaxis._offset + cellSize / 2;
-                        var y = point.yaxis.l2p(point.pointNumber[0]) + point.yaxis._offset + cellSize / 2;
+                        var x = point.xaxis.l2p(point.pointNumber[1]) + point.xaxis._offset + cellSize / 4;
+                        var y = point.yaxis.l2p(point.pointNumber[0]) + point.yaxis._offset + cellSize / 4;
                         console.log(x, y);
                         tooltip.style.left = `${x}px`;
                         tooltip.style.top = `${y}px`;
