@@ -46,6 +46,7 @@
     </div>
 
     <script>
+        const title = "Heatmap Visualization";
         const {createApp} = Vue;
 
         createApp({
@@ -94,7 +95,7 @@
                     };
                     const layout = {
                         title: {
-                            text: "<b>__TITLE__</b>",
+                            text: "<b>" + title + "</b>",
                             font: {...fontDefault, size: 32, family: 'Arial, sans-serif'},
                             xref: 'paper',
                             yref: 'paper',
@@ -118,6 +119,7 @@
                         },
                         autosize: true,
                     };
+                    const config = {responsive: true};
 
                     Plotly.react('heatmap', data, layout, config);
 
