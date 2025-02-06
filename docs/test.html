@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styling for the tooltip */
+        .hover-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .hover-tooltip img {
+            max-width: 150px;
+            max-height: 150px;
+            display: block;
+            margin: auto;
+        }
+
+        .body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-900 font-sans">
+    <div id="app" class="p-6">
+        <div id="heatmap" class="w-full h-full"></div>
+        <div id="tooltip" class="hover-tooltip"></div>
+    </div>
+
+    <script>
+        const {createApp} = Vue;
+
+        createApp({
+            data() {
+                return {
+                    heatmapData: null
+                };
+            },
+            mounted() {
+                fetch('data/heatmap_data.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.heatmapData = data;
+                        this.renderHeatmap();
+                    })
+                    .catch(error => console.error('Error loading heatmap data:', error));
+            },
+            methods: {
+                renderHeatmap() {
+                    if (!this.heatmapData) return;
+
+                    const trace1 = {
+                        type: 'heatmap',
+                        z: this.heatmapData.z_values,
+                        x: this.heatmapData.x_values,
+                        y: this.heatmapData.y_values,
+                        colorscale: 'Viridis',
+                        text: this.heatmapData.z_values,
+                        texttemplate: '%{text:.1f}',
+                        hoverinfo: 'none',
+                        colorbar: {
+                            title: 'Yield (%)',
+                            titleside: 'right',
+                            borderwidth: 0,
+                            dtick: 10,
+                            len: 1,
+                            orientation: 'v',
+                            thickness: 20,
+                        },
+                    };
+                    const data = [trace1];
+                    const fontDefault = {
+                        color: 'black',
+                        family: 'Courier New, monospace',
+                        size: 16
+                    };
+                    const layout = {
+                        title: {
+                            text: "<b>__TITLE__</b>",
+                            font: {...fontDefault, size: 32, family: 'Arial, sans-serif'},
+                            xref: 'paper',
+                            yref: 'paper',
+                            automargin: true,
+                        },
+                        xaxis: {
+                            title: '<b>Compounds</b>',
+                            scaleanchor: 'y', // Ensures 1:1 ratio
+                            scaleratio: 1,
+                            font: fontDefault,
+                            ticks: 'outside',
+                            tickangle: "auto",
+                        },
+                        yaxis: {
+                            title: '<b>Methods</b>',
+                            autorange: 'reversed', // Reverse the order of the y-axis
+                            font: fontDefault
+                        },
+                        margin: {
+                            l: 100, r: 50, t: 50, b: 100
+                        },
+                        autosize: true,
+                    };
+
+                    Plotly.react('heatmap', data, layout, config);
+
+                    this.setupTooltip();
+                },
+                setupTooltip() {
+                    const tooltip = document.getElementById('tooltip');
+                    const heatmap = document.getElementById('heatmap');
+
+                    heatmap.on('plotly_hover', (event) => {
+                        const point = event.points[0];
+                        const compoundId = point.x;
+                        const method = point.y;
+                        const yieldValue = point.z;
+                        // determine the cell size
+                        var cellSize = point.bbox['x1'] - point.bbox['x0']
+                        if (cellSize < 0) {
+                            cellSize = -cellSize;
+                        }
+                        // Tooltip content
+                        const imgSrc = this.heatmapData.images[compoundId];
+                        tooltip.innerHTML = `
+                            <img src="data:image/png;base64,${imgSrc}" alt="Image for ${compoundId}">
+                            <div class="text-sm"><b>Compound:</b> ${compoundId}</div>
+                            <div class="text-sm"><b>Method:</b> ${method}</div>
+                            <div class="text-sm"><b>Yield:</b> ${yieldValue.toFixed(2)}%</div>
+                        `;
+
+                        // Position and show the tooltip
+                        const {clientX: mouseX, clientY: mouseY} = event.event;
+                        var x = point.xaxis.l2p(point.pointNumber[1]) + point.xaxis._offset + cellSize / 2;
+                        var y = point.yaxis.l2p(point.pointNumber[0]) + point.yaxis._offset + cellSize / 2;
+                        console.log(x, y);
+                        tooltip.style.left = `${x}px`;
+                        tooltip.style.top = `${y}px`;
+                        tooltip.style.display = 'block';
+                    });
+
+                    heatmap.on('plotly_unhover', () => {
+                        tooltip.style.display = 'none';
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
