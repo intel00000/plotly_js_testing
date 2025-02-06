@@ -58,7 +58,6 @@
         createApp({
             data() {
                 return {
-                    title: "Loading...",
                     chartData: null,
                     selectedProperty: null,
                     imageData: null,
@@ -75,8 +74,7 @@
                 fetch('data/barchart/35_compounds.json')
                     .then(response => response.json())
                     .then(data => {
-                        this.title = data.title;
-                        document.title = data.title;
+                        document.title = data.page_title;
                         this.chartData = data.data;
                         this.imageData = data.images;
                         this.selectedProperty = Object.keys(this.chartData)[0];

@@ -4,7 +4,13 @@ import base64
 import pandas as pd
 
 
-def generate_bar_chart_json(output_json_path, properties_pkl, data_dir, image_dir):
+def generate_bar_chart_json(
+    output_json_path: str,
+    properties_pkl: str,
+    data_dir: str,
+    image_dir: str,
+    page_title: str,
+):
     """
     Generates a JSON file containing bar chart data for visualization.
 
@@ -13,6 +19,7 @@ def generate_bar_chart_json(output_json_path, properties_pkl, data_dir, image_di
         properties_pkl (str): Properties data file (pickle).
         data_dir (str): Path to the folder containing data pickle files.
         image_dir (str): Directory containing molecular images, named by compound IDs.
+        page_title (str): Title for the bar chart page.
 
     Returns:
         None
@@ -48,7 +55,11 @@ def generate_bar_chart_json(output_json_path, properties_pkl, data_dir, image_di
             print(f"Warning: Image file not found for {compound_id} at {img_full_path}")
 
     print("Generating JSON file...")
-    bar_chart_data = {"data": {}, "images": mol_image_base64}
+    bar_chart_data = {
+        "page_title": page_title,
+        "data": {},
+        "images": mol_image_base64,
+    }
 
     # Generate data for each numeric column
     for column in df.select_dtypes(include="number").columns:
@@ -89,9 +100,12 @@ def generate_bar_chart_json(output_json_path, properties_pkl, data_dir, image_di
 
 
 if __name__ == "__main__":
+    page_title = "Bar Chart of 35 Compound with DFT Properties"
     output_json_path = "docs/data/barchart/bar_chart_data.json"
     properties_pkl = "Select_properties.pkl"
     data_dir = "data"  # Path to the folder containing data pickle files
     image_dir = "images"
 
-    generate_bar_chart_json(output_json_path, properties_pkl, data_dir, image_dir)
+    generate_bar_chart_json(
+        output_json_path, properties_pkl, data_dir, image_dir, page_title
+    )
