@@ -34,7 +34,7 @@ with open(os.path.join(folder, "index.html"), "w") as index_file:
     # Add a list item for each HTML file with its creation date
     for filename in sorted(html_files):
         created_utc = datetime.fromtimestamp(
-            os.path.getctime(os.path.join(folder, filename)), tz=timezone.utc
+            os.path.getmtime(os.path.join(folder, filename)), tz=timezone.utc
         )
         created_est = created_utc.astimezone(tz)  # Convert to EST/EDT dynamically
         created_time = created_est.strftime("%Y-%m-%d %H:%M")  # Removed UTC offset
