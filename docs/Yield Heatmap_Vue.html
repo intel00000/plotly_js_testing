@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heatmap Visualization</title>
+    <title>Loading...</title>
     <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -40,26 +40,29 @@
 </head>
 
 <body class="bg-gray-100 text-gray-900 font-sans">
-    <div id="app" class="p-6">
+    <div id="app" class="p-4">
+        <h1 class="text-2xl font-bold text-center mb-6">{{ title || "Loading..." }}</h1>
         <div id="heatmap" class="w-full h-[100vh]"></div>
         <div id="tooltip" class="hover-tooltip"></div>
     </div>
 
     <script>
-        const title = "Heatmap Visualization";
         const {createApp} = Vue;
 
         createApp({
             data() {
                 return {
+                    title: "Loading...",
                     heatmapData: null
                 };
             },
             mounted() {
-                fetch('data/heatmap_data.json')
+                fetch('data/heatmap/35_compounds.json')
                     .then(response => response.json())
                     .then(data => {
                         this.heatmapData = data;
+                        document.title = data.title; // Update the page title
+                        this.title = data.title;
                         this.renderHeatmap();
                     })
                     .catch(error => console.error('Error loading heatmap data:', error));
@@ -95,14 +98,20 @@
                     };
                     const layout = {
                         title: {
-                            text: "<b>" + title + "</b>",
+                            text: `<b>${this.title}</b>`,
                             font: {...fontDefault, size: 32, family: 'Arial, sans-serif'},
                             xref: 'paper',
                             yref: 'paper',
                             automargin: true,
                         },
                         xaxis: {
-                            title: '<b>Compounds</b>',
+                            title: {
+                                text: "<b>" + "Compounds" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
                             scaleanchor: 'y', // Ensures 1:1 ratio
                             scaleratio: 1,
                             font: fontDefault,
@@ -110,9 +119,16 @@
                             tickangle: "auto",
                         },
                         yaxis: {
-                            title: '<b>Methods</b>',
-                            autorange: 'reversed', // Reverse the order of the y-axis
-                            font: fontDefault
+                            title: {
+                                text: "<b>" + "Methods" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            font: fontDefault,
+                            ticks: 'outside',
+                            tickangle: "auto",
                         },
                         margin: {
                             l: 100, r: 50, t: 50, b: 100
