@@ -42,13 +42,25 @@
 
 <body class="bg-gray-100 text-gray-900 font-sans">
     <div id="app" class="p-4">
-        <div class="text-center mb-4">
+        <div class="flex justify-center items-center mb-4 space-x-4">
             <label for="property" class="font-semibold">Select Property:</label>
-            <select v-model="selectedProperty" id="property" class="border p-2 rounded-md ml-2">
+            <select v-model="selectedProperty" id="property" class="border p-2 rounded-md">
                 <option v-for="(data, property) in chartData" :key="property" :value="property">{{ property }}</option>
             </select>
+
+            <label for="batch-select" class="font-semibold">Select Compound Range:</label>
+            <select v-model="selectedBatchIndex" id="batch-select" class="border p-2 rounded-md">
+                <option v-for="(batch, index) in batchLabels" :key="index" :value="index">{{ batch }}</option>
+                <option :value="-1">Full Dataset</option>
+            </select>
+
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" v-model="showText" class="form-checkbox h-5 w-5 text-blue-600">
+                <span class="font-semibold">Show Text in Bars</span>
+            </label>
         </div>
-        <p v-if="!chartData" class="text-center text-lg font-semibold">Loading heatmap...</p>
+
+        <p v-if="!chartData" class="text-center text-lg font-semibold">Loading bar chart...</p>
         <div id="bar-chart" class="w-full h-[100vh]"></div>
         <div id="tooltip" class="hover-tooltip"></div>
     </div>
@@ -63,13 +75,23 @@
                     yieldData: null,
                     selectedProperty: null,
                     imageData: null,
+                    selectedBatchIndex: 0,
+                    compoundChunks: [],
+                    batchLabels: [],
+                    showText: true,
                 };
             },
             watch: {
                 selectedProperty(newProperty) {
                     if (newProperty) {
-                        this.fetchYieldData().then(() => this.renderBarChart(newProperty));
+                        this.renderBarChart(newProperty, this.selectedBatchIndex);
                     }
+                },
+                selectedBatchIndex(newIndex) {
+                    this.renderBarChart(this.selectedProperty, newIndex);
+                },
+                showText() {
+                    this.renderBarChart(this.selectedProperty, this.selectedBatchIndex);
                 }
             },
             mounted() {
@@ -82,21 +104,31 @@
                         this.chartData = barData.data;
                         this.imageData = barData.images;
                         this.yieldData = yieldData;
+                        this.splitCompounds();
                         this.selectedProperty = Object.keys(this.chartData)[0];
                     })
                     .catch(error => console.error('Error loading data:', error));
             },
             methods: {
-                async fetchYieldData() {
-                    if (!this.yieldData) {
-                        this.yieldData = await fetch('data/35_yields.json').then(response => response.json());
+                splitCompounds() {
+                    const compounds = this.yieldData.compounds;
+                    const chunkSize = 50;
+                    for (let i = 0; i < compounds.length; i += chunkSize) {
+                        let batch = compounds.slice(i, i + chunkSize);
+                        this.compoundChunks.push(batch);
+                        this.batchLabels.push(`${batch[0]} - ${batch[batch.length - 1]}`);
                     }
                 },
-                renderBarChart(property) {
+                renderBarChart(property, batchIndex) {
+                    console.log("Entering renderHeatmap");
+                    if (!this.chartData || !this.yieldData) return;
                     const propertyData = this.chartData[property];
-                    if (!propertyData || !this.yieldData) return;
-                    const x = propertyData.x_values;
-                    const y = propertyData.y_values;
+                    if (!propertyData) return;
+
+                    // compound and method lists
+                    const compoundBatch = batchIndex === -1 ? propertyData.x_values : this.compoundChunks[batchIndex];
+                    const x = compoundBatch;
+                    const y = compoundBatch.map(compound => propertyData.y_values[propertyData.x_values.indexOf(compound)] ?? null);
 
                     const fontDefault = {
                         color: 'black',
@@ -109,14 +141,13 @@
                         x: x,
                         y: y,
                         yaxis: 'y',
-                        text: y.map(value => value.toFixed(2)),
+                        text: this.showText ? y.map(value => value?.toFixed(2) ?? "") : [],
                         textposition: 'auto',
-                        texttemplate: '%{text:.1f}', // Format the z values
+                        texttemplate: this.showText ? '%{text:.1f}' : '',
                         textfont: {...fontDefault, size: 12},
-                        hoverinfo: 'none', // Disable hover
+                        hoverinfo: 'none',
                         marker: {color: 'LightSalmon'},
                     };
-                    console.log(this.yieldData);
                     const yieldTraces = this.yieldData.methods.map(method => {
                         return {
                             type: 'scatter',
@@ -127,6 +158,7 @@
                             mode: 'lines+markers',
                             visible: 'legendonly',
                             line: {dash: 'dash'},
+                            hoverinfo: 'none',
                         };
                     });
                     const data = [trace1, ...yieldTraces];
@@ -199,21 +231,38 @@
 
                     barChart.on('plotly_hover', event => {
                         const point = event.points[0];
+                        console.log("Hover event:", point);
                         const compoundId = point.x;
                         const value = point.y;
-                        var cellSizeX = Math.abs(point.bbox.width || (point.bbox.x1 - point.bbox.x0));
+                        // determine the cell width
+                        var cellSizeWidth = Math.abs(point.bbox.width || (point.bbox.x1 - point.bbox.x0));
+                        // Tooltip content
                         const imgSrc = imageData[compoundId];
-                        tooltip.innerHTML = `
+                        if (point.data.type === 'bar') {
+                            tooltip.innerHTML = `
                             <img src="${imgSrc}" alt="Image for ${compoundId}"><br>
-                            <strong>Molecule:</strong> ${compoundId}<br>
-                            <strong>${this.selectedProperty}:</strong> ${value.toFixed(2)}
-                        `;
+                            <div class="text-sm"><b>Compound:</b> ${compoundId}</div>
 
-                        // Position and show the tooltip
+                            <div class="text-sm"><b>${point.data.name
+                                }:</b> ${value !== null ? value.toFixed(2) : "N/A"}</div>
+                        `;
+                        }
+                        if (point.data.type === "scatter") {
+                            tooltip.innerHTML = `
+                            <img src="${imgSrc}" alt="Image for ${compoundId}"><br>
+                            <div class="text-sm"><b>Compound:</b> ${compoundId}</div>
+
+                            <div class="text-sm"><b>${point.data.name
+                                } Yield:</b> ${value !== null ? value.toFixed(2) + '%' : "N/A"}</div>
+                        `;
+                        }
+
+                        // Get the bounding box of the hovered cell
+                        const bbox = point.bbox || {x0: event.event.clientX, y0: event.event.clientY};
                         const {clientX: mouseX, clientY: mouseY} = event.event;
-                        var x = point.xaxis.l2p(point.pointNumber) + point.xaxis._offset + cellSizeX / 4;
-                        tooltip.style.left = `${mouseX}px`;
-                        tooltip.style.top = `${mouseY}px`;
+                        // Position the tooltip relative to the hovered cell
+                        tooltip.style.left = `${bbox.x0 + cellSizeWidth / 2}px`;
+                        tooltip.style.top = `${mouseY + 20}px`;
                         tooltip.style.display = 'block';
                     });
 
