@@ -26,8 +26,7 @@ jobs:
 
       - name: Run the generate_index.py script
         run: |
-          cd scripts
-          python generate_index_page.py
+          python scripts/generate_index_page.py
 
       - name: Check for Changes
         id: check_changes
