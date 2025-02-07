@@ -12,7 +12,7 @@ timestamp = int(time.time())  # For cache busting
 # Define folder where HTML files are stored
 folder = "docs"
 
-# Get the root directory name (repo name)
+# Get the root directory name
 repo_name = os.path.basename(os.getcwd())
 
 # List all HTML files inside `docs/`, excluding `index.html`
