@@ -18,7 +18,7 @@ repo_name = os.path.basename(os.getcwd())
 # List all HTML files inside `docs/`, excluding `index.html`
 html_files = [f for f in glob.glob("*.html", root_dir=folder) if f != "index.html"]
 
-# Organize files by prefix (first word in filename)
+# Organize files by prefix
 file_groups = defaultdict(list)
 for filename in sorted(html_files):
     display_name = filename.replace("_", " ").replace(".html", "")
