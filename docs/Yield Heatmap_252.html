@@ -42,8 +42,15 @@
 
 <body class="bg-gray-100 text-gray-900 font-sans">
     <div id="app">
+        <div class="flex justify-center items-center mb-4">
+            <label for="batch-select" class="mr-2 font-semibold">Select Compound Range:</label>
+            <select v-model="selectedBatchIndex" id="batch-select" class="border p-2 rounded-md">
+                <option v-for="(batch, index) in batchLabels" :key="index" :value="index">{{ batch }}</option>
+            </select>
+        </div>
+
         <p v-if="!heatmapData" class="text-center text-lg font-semibold">Loading heatmap...</p>
-        <div id="heatmap" class="w-full h-[100vh]"></div>
+        <div id="heatmap" class="w-full h-[60vh]"></div>
         <div id="tooltip" class="hover-tooltip"></div>
     </div>
 
@@ -57,7 +64,15 @@
                     graphName: "Loading...",
                     heatmapData: null,
                     yieldData: null,
+                    compoundChunks: [],
+                    batchLabels: [],
+                    selectedBatchIndex: 0,
                 };
+            },
+            watch: {
+                selectedBatchIndex(newIndex) {
+                    this.renderHeatmap(newIndex);
+                }
             },
             mounted() {
                 fetch('data/heatmap/252_compounds.json')
@@ -71,29 +86,42 @@
                     })
                     .then(response => response.json())
                     .then(yieldData => {
-                        this.yieldData = yieldData.values; // Store yield values
-                        this.renderHeatmap();
+                        this.yieldData = yieldData.yields; // Store yield values
+                        this.splitCompounds(); // Slice compounds into batches of 50
+                        this.renderHeatmap(0); // Load the first batch initially
                     })
                     .catch(error => console.error('Error loading heatmap data:', error));
             },
             methods: {
-                renderHeatmap() {
-                    if (!this.heatmapData || !this.yieldData) return;
-                    // Extract compound and method lists
+                splitCompounds() {
                     const compounds = this.heatmapData.compounds;
+                    const chunkSize = 35;
+                    for (let i = 0; i < compounds.length; i += chunkSize) {
+                        let batch = compounds.slice(i, i + chunkSize);
+                        this.compoundChunks.push(batch);
+                        this.batchLabels.push(`${batch[0]} - ${batch[batch.length - 1]}`);
+                    }
+                },
+                renderHeatmap(batchIndex) {
+                    console.log("Entering renderHeatmap");
+                    if (!this.heatmapData || !this.yieldData) return;
+
+                    // compound and method lists
                     const methods = this.heatmapData.methods;
+                    const compoundBatch = this.compoundChunks[batchIndex];
                     // Dynamically map yield values
                     const z_values = methods.map(method =>
-                        compounds.map(compound => this.yieldData.yields[compound]?.[method] ?? null)
+                        compoundBatch.map(compound => this.yieldData[compound]?.[method] ?? null)
                     );
-                    console.log(compounds, methods, z_values);
+                    console.log(methods, compoundBatch, z_values);
+
                     const trace1 = {
                         type: 'heatmap',
                         z: z_values,
-                        x: compounds,
+                        x: compoundBatch,
                         y: methods,
                         colorscale: 'Viridis',
-                        text: this.heatmapData.z_values,
+                        text: z_values,
                         texttemplate: '%{text:.1f}',
                         hoverinfo: 'none',
                         colorbar: {
@@ -174,15 +202,16 @@
                             <img src="${imgSrc}" alt="Image for ${compoundId}">
                             <div class="text-sm"><b>Compound:</b> ${compoundId}</div>
                             <div class="text-sm"><b>Method:</b> ${method}</div>
-                            <div class="text-sm"><b>Yield:</b> ${yieldValue ? yieldValue.toFixed(2) + "%" : "N/A"}</div>
+                            <div class="text-sm"><b>Yield:</b> ${yieldValue !== null && yieldValue !== undefined ? yieldValue.toFixed(2) + "%" : "N/A"}</div>
                         `;
 
-                        // Position and show the tooltip
-                        var x = point.xaxis.l2p(point.pointNumber[1]) + point.xaxis._offset + cellSize / 4;
-                        var y = point.yaxis.l2p(point.pointNumber[0]) + point.yaxis._offset + cellSize / 4;
-                        console.log(x, y);
-                        tooltip.style.left = `${x}px`;
-                        tooltip.style.top = `${y}px`;
+                        // Get the bounding box of the hovered cell
+                        const bbox = point.bbox || {x0: event.event.clientX, y0: event.event.clientY};
+                        const cellWidth = Math.abs(bbox.x1 - bbox.x0);
+                        const cellHeight = Math.abs(bbox.y1 - bbox.y0);
+                        // Position the tooltip relative to the hovered cell
+                        tooltip.style.left = `${bbox.x0 + cellWidth / 4 * 3}px`;
+                        tooltip.style.top = `${bbox.y0 + cellHeight / 4 * 3}px`;
                         tooltip.style.display = 'block';
                     });
 
