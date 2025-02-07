@@ -7,7 +7,7 @@ import pytz
 
 
 tz = pytz.timezone("America/Chicago")  # CST/CDT timezone
-timestamp = int(time.time())  # Cache busting
+timestamp = int(time.time())  # For cache busting
 
 # Define folder where HTML files are stored
 folder = "docs"
