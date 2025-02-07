@@ -1,0 +1,48 @@
+name: Generate Index Page
+
+on:
+  push:
+    paths:
+      - "docs/*.html"  # Run when HTML files in the docs folder change
+      - "scripts/generate_index_page.py"  # Run when the script changes
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytz
+
+      - name: Run the generate_index.py script
+        run: |
+          cd scripts
+          python generate_index.py
+
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          git add -A  # Track both modified and untracked files
+          if git diff --cached --quiet; then
+            echo "No changes to commit" && exit 0
+          fi
+
+      - name: Commit and Push Changes
+        if: steps.check_changes.outcome == 'success'
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Auto-generate index.html from GitHub Actions"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
