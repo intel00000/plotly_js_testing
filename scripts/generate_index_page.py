@@ -25,7 +25,7 @@ for filename in sorted(html_files):
     prefix = display_name.split(" ", 1)[0]  # Use the first word as prefix
     file_groups[prefix].append((filename, display_name))
 
-# Start writing the index.html file
+# write to index.html
 with open(os.path.join(folder, "index.html"), "w") as index_file:
     header = """<!DOCTYPE html>
 <html>
