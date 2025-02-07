@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styling for the tooltip */
+        .hover-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .hover-tooltip img {
+            max-width: 150px;
+            max-height: 150px;
+            display: block;
+            margin: auto;
+        }
+
+        .body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-900 font-sans">
+    <div id="app" class="p-4">
+        <div class="text-center mb-4">
+            <label for="property" class="font-semibold">Select Property:</label>
+            <select v-model="selectedProperty" id="property" class="border p-2 rounded-md ml-2">
+                <option v-for="(data, property) in chartData" :key="property" :value="property">{{ property }}</option>
+            </select>
+        </div>
+        <p v-if="!chartData" class="text-center text-lg font-semibold">Loading heatmap...</p>
+        <div id="bar-chart" class="w-full h-[100vh]"></div>
+        <div id="tooltip" class="hover-tooltip"></div>
+    </div>
+
+    <script>
+        const {createApp} = Vue;
+
+        createApp({
+            data() {
+                return {
+                    chartData: null,
+                    yieldData: null,
+                    selectedProperty: null,
+                    imageData: null,
+                    yield_data_path: null,
+                };
+            },
+            watch: {
+                selectedProperty(newProperty) {
+                    if (newProperty) {
+                        this.fetchYieldData().then(() => this.renderBarChart(newProperty));
+                    }
+                }
+            },
+            mounted() {
+                Promise.all([
+                    fetch('data/barchart/252_compounds.json').then(response => response.json()),
+                    fetch('data/yields/252_yields.json').then(response => response.json()),
+                ])
+                    .then(([barData, yieldData]) => {
+                        document.title = barData.page_title;
+                        this.chartData = barData.data;
+                        this.imageData = barData.images;
+                        this.yieldData = yieldData;
+                        this.yield_data_path = barData.yield_data_path;
+                        this.selectedProperty = Object.keys(this.chartData)[0];
+                    })
+                    .catch(error => console.error('Error loading data:', error));
+            },
+            methods: {
+                async fetchYieldData() {
+                    if (!this.yieldData) {
+                        this.yieldData = await fetch(this.yield_data_path).then(response => response.json());
+                    }
+                },
+                renderBarChart(property) {
+                    const propertyData = this.chartData[property];
+                    if (!propertyData || !this.yieldData) return;
+                    const x = propertyData.x_values;
+                    const y = propertyData.y_values;
+
+                    const fontDefault = {
+                        color: 'black',
+                        family: 'Courier New, monospace',
+                        size: 16
+                    };
+                    const trace1 = {
+                        type: 'bar',
+                        name: property,
+                        x: x,
+                        y: y,
+                        yaxis: 'y',
+                        text: y.map(value => value.toFixed(2)),
+                        textposition: 'auto',
+                        texttemplate: '%{text:.1f}', // Format the z values
+                        textfont: {...fontDefault, size: 12},
+                        hoverinfo: 'none', // Disable hover
+                        marker: {color: 'LightSalmon'},
+                    };
+                    console.log(this.yieldData);
+                    const yieldTraces = this.yieldData.methods.map(method => {
+                        return {
+                            type: 'scatter',
+                            name: method,
+                            x: x,
+                            y: x.map(compound => this.yieldData.yields[compound]?.[method] ?? null),
+                            yaxis: 'y2',
+                            mode: 'lines+markers',
+                            visible: 'legendonly',
+                            line: {dash: 'dash'},
+                        };
+                    });
+                    const data = [trace1, ...yieldTraces];
+                    const yrange = Math.max(...y) - Math.min(...y);
+
+                    const layout = {
+                        xaxis: {
+                            title: {
+                                text: "<b>" + "Compounds" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            scaleanchor: 'y', // Ensures 1:1 ratio
+                            scaleratio: 1,
+                            font: fontDefault,
+                            ticks: 'outside',
+                            tickangle: "auto",
+                        },
+                        yaxis: {
+                            title: {
+                                text: "<b>" + "Value" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            font: fontDefault,
+                            // set the range to be +/- 10% of the data range
+                            range: [Math.min(...y) - 0.1 * yrange, Math.max(...y) + 0.1 * yrange],
+                            tickangle: "auto",
+                        },
+                        yaxis2: {
+                            title: {
+                                text: "<b>" + "Yield" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            overlaying: 'y',
+                            side: 'right',
+                            font: fontDefault,
+                            range: [0, 100],
+                            tickangle: "auto",
+                        },
+                        margin: {
+                            l: 100, r: 100, t: 50, b: 100
+                        },
+                        legend: {
+                            orientation: 'v',
+                            xref: 'paper',
+                            yref: 'paper',
+                            x: 1.15,
+                            y: 0.5,
+                        },
+                        autosize: true,
+                    };
+                    const config = {responsive: true};
+
+                    Plotly.react('bar-chart', data, layout, config);
+
+                    this.setupTooltip();
+                },
+                setupTooltip() {
+                    const tooltip = document.getElementById('tooltip');
+                    const barChart = document.getElementById('bar-chart');
+                    const imageData = this.imageData;
+
+                    barChart.on('plotly_hover', event => {
+                        const point = event.points[0];
+                        const compoundId = point.x;
+                        const value = point.y;
+                        var cellSizeX = Math.abs(point.bbox.width || (point.bbox.x1 - point.bbox.x0));
+                        const imgSrc = imageData[compoundId];
+                        tooltip.innerHTML = `
+                            <img src="${imgSrc}" alt="Image for ${compoundId}"><br>
+                            <strong>Molecule:</strong> ${compoundId}<br>
+                            <strong>${this.selectedProperty}:</strong> ${value.toFixed(2)}
+                        `;
+
+                        // Position and show the tooltip
+                        const {clientX: mouseX, clientY: mouseY} = event.event;
+                        var x = point.xaxis.l2p(point.pointNumber) + point.xaxis._offset + cellSizeX / 4;
+                        tooltip.style.left = `${mouseX}px`;
+                        tooltip.style.top = `${mouseY}px`;
+                        tooltip.style.display = 'block';
+                    });
+
+                    barChart.on('plotly_unhover', () => {
+                        tooltip.style.display = 'none';
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>

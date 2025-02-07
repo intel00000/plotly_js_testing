@@ -26,7 +26,6 @@ GaussView/
 *.pkl
 *.pyo
 *.pyc
-*.png
 *.sdf
 *.spec
 *.xlsx
