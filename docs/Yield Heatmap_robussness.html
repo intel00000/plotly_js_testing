@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styling for the tooltip */
+        .hover-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .hover-tooltip img {
+            max-width: 150px;
+            max-height: 150px;
+            display: block;
+            margin: auto;
+        }
+
+        .body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-900 font-sans">
+    <div id="app">
+        <div class="flex justify-center items-center mb-4 space-x-4">
+            <label for="batch-select" class="font-semibold">Select Compound Range:</label>
+            <select v-model="selectedBatchIndex" id="batch-select" class="border p-2 rounded-md">
+                <option v-for="(batch, index) in batchLabels" :key="index" :value="index">{{ batch }}</option>
+                <option :value="-1">Full Dataset</option>
+            </select>
+
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" v-model="showText" class="form-checkbox h-5 w-5 text-blue-600">
+                <span class="font-semibold">Show Text in Cells</span>
+            </label>
+        </div>
+
+        <p v-if="!heatmapData" class="text-center text-lg font-semibold">Loading heatmap...</p>
+        <div id="heatmap" class="w-full h-[60vh]"></div>
+        <div id="tooltip" class="hover-tooltip"></div>
+    </div>
+
+    <script>
+        const {createApp} = Vue;
+
+        createApp({
+            data() {
+                return {
+                    pageTitle: "Loading...",
+                    graphName: "Loading...",
+                    heatmapData: null,
+                    yieldData: null,
+                    compoundChunks: [],
+                    batchLabels: [],
+                    selectedBatchIndex: 0,
+                    showText: true,
+                };
+            },
+            watch: {
+                selectedBatchIndex(newIndex) {
+                    this.renderHeatmap(newIndex);
+                },
+                showText() {
+                    this.renderHeatmap(this.selectedBatchIndex);
+                }
+            },
+            mounted() {
+                fetch('data/heatmap/Robussness_compounds.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.heatmapData = data;
+                        this.pageTitle = data.page_title;
+                        this.graphName = data.graph_name;
+                        document.title = this.pageTitle;
+                        return fetch(data.yield_data_path); // Load yield data dynamically
+                    })
+                    .then(response => response.json())
+                    .then(yieldData => {
+                        this.yieldData = yieldData.yields; // Store yield values
+                        this.splitCompounds(); // Slice compounds into batches of 50
+                        this.renderHeatmap(0); // Load the first batch initially
+                    })
+                    .catch(error => console.error('Error loading heatmap data:', error));
+            },
+            methods: {
+                splitCompounds() {
+                    const compounds = this.heatmapData.compounds;
+                    const chunkSize = 50;
+                    for (let i = 0; i < compounds.length; i += chunkSize) {
+                        let batch = compounds.slice(i, i + chunkSize);
+                        this.compoundChunks.push(batch);
+                        this.batchLabels.push(`${batch[0]} - ${batch[batch.length - 1]}`);
+                    }
+                },
+                renderHeatmap(batchIndex) {
+                    console.log("Entering renderHeatmap");
+                    if (!this.heatmapData || !this.yieldData) return;
+
+                    // compound and method lists
+                    const methods = this.heatmapData.methods;
+                    const compoundBatch = batchIndex === -1 ? this.heatmapData.compounds : this.compoundChunks[batchIndex];
+                    // Dynamically map yield values
+                    const z_values = methods.map(method =>
+                        compoundBatch.map(compound => this.yieldData[compound]?.[method] ?? null)
+                    );
+                    console.log(methods, compoundBatch, z_values);
+
+                    const trace1 = {
+                        type: 'heatmap',
+                        z: z_values,
+                        x: compoundBatch,
+                        y: methods,
+                        colorscale: 'Red',
+                        text: this.showText ? z_values : [],
+                        texttemplate: this.showText ? '%{text:.1f}' : '',
+                        hoverinfo: 'none',
+                        colorbar: {
+                            title: 'Yield (%)',
+                            titleside: 'right',
+                            borderwidth: 0,
+                            dtick: 10,
+                            len: 1,
+                            orientation: 'v',
+                            thickness: 20,
+                        },
+                    };
+                    const data = [trace1];
+                    const fontDefault = {
+                        color: 'black',
+                        family: 'Courier New, monospace',
+                        size: 16
+                    };
+                    const layout = {
+                        title: {
+                            text: `<b>${this.graphName}</b>`,
+                            font: {...fontDefault, size: 32, family: 'Arial, sans-serif'},
+                            xref: 'paper',
+                            yref: 'paper',
+                            automargin: true,
+                        },
+                        xaxis: {
+                            title: {
+                                text: "<b>" + "Compounds" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            scaleanchor: 'y', // Ensures 1:1 ratio
+                            scaleratio: 1,
+                            font: fontDefault,
+                            ticks: 'outside',
+                            tickangle: "auto",
+                        },
+                        yaxis: {
+                            title: {
+                                text: "<b>" + "Methods" + "</b>",
+                                font: {...fontDefault, size: 24, family: 'Arial, sans-serif'},
+                                xref: 'paper',
+                                yref: 'paper',
+                                automargin: true,
+                            },
+                            font: fontDefault,
+                            ticks: 'outside',
+                            tickangle: "auto",
+                        },
+                        margin: {
+                            l: 100, r: 50, t: 50, b: 100
+                        },
+                        autosize: true,
+                    };
+                    const config = {responsive: true};
+
+                    Plotly.react('heatmap', data, layout, config);
+
+                    this.setupTooltip();
+                },
+                setupTooltip() {
+                    const tooltip = document.getElementById('tooltip');
+                    const heatmap = document.getElementById('heatmap');
+
+                    heatmap.on('plotly_hover', (event) => {
+                        const point = event.points[0];
+                        const compoundId = point.x;
+                        const method = point.y;
+                        const yieldValue = point.z;
+                        // determine the cell size
+                        var cellSize = Math.abs(point.bbox.width || (point.bbox.x1 - point.bbox.x0));
+                        // Tooltip content
+                        const imgSrc = this.heatmapData.images[compoundId];
+                        tooltip.innerHTML = `
+                            <img src="${imgSrc}" alt="Image for ${compoundId}">
+                            <div class="text-sm"><b>Compound:</b> ${compoundId}</div>
+                            <div class="text-sm"><b>Method:</b> ${method}</div>
+                            <div class="text-sm"><b>Yield:</b> ${yieldValue !== null && yieldValue !== undefined ? yieldValue.toFixed(2) + "%" : "N/A"}</div>
+                        `;
+
+                        // Get the bounding box of the hovered cell
+                        const bbox = point.bbox || {x0: event.event.clientX, y0: event.event.clientY};
+                        const cellWidth = Math.abs(bbox.x1 - bbox.x0);
+                        const cellHeight = Math.abs(bbox.y1 - bbox.y0);
+                        // Position the tooltip relative to the hovered cell
+                        tooltip.style.left = `${bbox.x0 + cellWidth / 4 * 3}px`;
+                        tooltip.style.top = `${bbox.y0 + cellHeight / 4 * 3}px`;
+                        tooltip.style.display = 'block';
+                    });
+
+                    heatmap.on('plotly_unhover', () => {
+                        tooltip.style.display = 'none';
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
